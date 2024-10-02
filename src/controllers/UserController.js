@@ -1,4 +1,6 @@
 const database = require('../models');
+const fs = require('fs');
+const path = require('path');
 
 class UserController {
     static async getById(req,res) {
@@ -12,8 +14,39 @@ class UserController {
     }
     static async getAll(req,res) {
         try{
-            const list = await database.Task.findAll();
-            return res.status(200).json(list);
+            const list = await database.User.findAll();
+            
+            const mappedList = await Promise.all(list.map(async ({id, name, photo_path}) => {
+                
+                if(photo_path){
+                    try{
+                        const filePath = path.join(__dirname, '../../', photo_path);
+                        const data = await fs.promises.readFile(filePath);
+                        const imageBase64 = data.toString('base64');
+                        return {
+                            id: id,
+                            name: name,
+                            photo: `data:image/png;base64,${imageBase64}`,
+                        };
+                    }catch(err) {
+                        console.log(err);
+                        return {
+                            id: id,
+                            name: name,
+                            photo: null,
+                        };
+                    }
+                }
+                else{
+                    return {
+                        id: id,
+                        name: name,
+                        photo: null,
+                    };
+                }
+            }));
+            
+            return res.status(200).json(mappedList);
         }
         catch(error){
             
